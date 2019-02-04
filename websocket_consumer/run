@@ -1,0 +1,1 @@
+docker run -d --network=coinbase --name=coinbase_websocket websocket_consumer

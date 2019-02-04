@@ -1,0 +1,29 @@
+version: '3.2'
+services:
+  influxdb:
+    image: influxdb:1.7
+    container_name: influxdb
+    networks:
+      - coinbase
+    ports:
+      - "8086:8086"
+    volumes:
+     - type: bind
+       source: ./mnt/influxdb
+       target: /var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=coinbase
+  grafana:
+    build: ./grafana
+    container_name: coinbase_grafana
+    networks:
+      - coinbase
+    ports:
+      - "3000:3000"
+  websocket:
+    build: ./websocket_consumer
+    container_name: coinbase_websocket
+    networks:
+      - coinbase
+networks:
+  coinbase:

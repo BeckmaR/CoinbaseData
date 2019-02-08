@@ -2,13 +2,17 @@ from influxdb import InfluxDBClient
 import asyncio
 import websockets
 import json
+import requests
 from decimal import Decimal as D
 
 coinbase_api_ws = "wss://ws-feed.pro.coinbase.com"
+coinbase_api = "https://api.pro.coinbase.com"
 
 products = ["BTC-EUR"]
 
 influx_client = InfluxDBClient(host="influxdb", database="coinbase")
+
+max_match_id = {}
 
 async def subscribe():
     async with websockets.connect(coinbase_api_ws) as websocket:
@@ -26,9 +30,12 @@ async def subscribe():
 
 
 def consume(message):
+    print(message)
     message = json.loads(message)
     if message["type"] == "match":
         consume_match(message)
+    elif message["type"] == "heartbeat":
+        consume_heartbeat(message)
 
 
 def consume_match(message):
@@ -38,6 +45,8 @@ def consume_match(message):
     price = D(message["price"])
     product_id = message["product_id"]
     time = message["time"]
+
+    max_match_id[product_id] = trade_id
 
     size_i, size_s = split_decimal(size)
     price_i, price_s = split_decimal(price)
@@ -58,9 +67,22 @@ def consume_match(message):
             "time": time
         }
     ]
-
+    print(str(data))
     influx_client.write_points(data)
 
+
+def consume_heartbeat(message):
+    last_trade_id = message["last_trade_id"]
+    product_id = message["product_id"]
+    if not product_id in max_match_id or last_trade_id > max_match_id[product_id]:
+        print("Loading missing from REST: [" + product_id + "] - " + str(last_trade_id))
+
+
+def get_from_rest(product_id, trade_id):
+    url = coinbase_api + "/products/" + product_id + "/trades"
+    r = requests.get(url=url, params={"after": trade_id+1, "limit": 1})
+    data = r.json()
+    consume_match(data[0])
 
 def split_decimal(dec):
     t = dec.as_tuple()

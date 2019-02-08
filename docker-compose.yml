@@ -25,5 +25,14 @@ services:
     container_name: coinbase_websocket
     networks:
       - coinbase
+    environment:
+      - PYTHONUNBUFFERED=0
+  subscription:
+    build: ./udp_subscription
+    container_name: influxdb_subscription
+    networks:
+      - coinbase
+    environment:
+      - PYTHONUNBUFFERED=0
 networks:
   coinbase:

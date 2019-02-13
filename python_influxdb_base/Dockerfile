@@ -4,4 +4,4 @@ WORKDIR /app
 
 COPY . /app
 
-CMD python3 -u script.py
+RUN pip install -r requirements.txt

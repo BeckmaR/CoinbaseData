@@ -13,6 +13,7 @@ services:
        target: /var/lib/influxdb
     environment:
       - INFLUXDB_DB=coinbase
+    restart: unless-stopped
   grafana:
     build: ./grafana
     container_name: coinbase_grafana
@@ -27,12 +28,14 @@ services:
       - coinbase
     environment:
       - PYTHONUNBUFFERED=0
-  subscription:
-    build: ./udp_subscription
-    container_name: influxdb_subscription
+    restart: unless-stopped
+  db_validator:
+    build: ./db_validator
+    container_name: db_validator
     networks:
       - coinbase
     environment:
       - PYTHONUNBUFFERED=0
+    restart: unless-stopped
 networks:
   coinbase:

@@ -39,12 +39,22 @@ def consume(message):
 
 
 def consume_match(message):
-    trade_id = message["trade_id"]
+    trade_id = int(message["trade_id"])
     side = message["side"]
     size = D(message["size"])
     price = D(message["price"])
     product_id = message["product_id"]
     time = message["time"]
+
+    # Calculate a tag based on the trade_id.
+    # Because influxDB doesn't like having too many unique tags,
+    # trade_id should not be used as a tag.
+    # But because multiple trades can happen at the same time,
+    # trade_id % 100 is used as a tag. This means at most 1000
+    # different tags can occur, and 100 trades can happen at the same time
+    # without overwriting happening.
+
+    trade_id_tag = trade_id % 100
 
     max_match_id[product_id] = trade_id
 
@@ -55,20 +65,21 @@ def consume_match(message):
         {
             "measurement": product_id,
             "tags": {
-                "trade_id": trade_id,
+                "uid": trade_id_tag,
                 "side": side
             },
             "fields": {
                 "size_unscaled": size_i,
                 "size_scale": size_s,
                 "price_unscaled": price_i,
-                "price_scale": price_s
+                "price_scale": price_s,
+                "trade_id": trade_id
             },
             "time": time
         }
     ]
     print(str(data))
-    influx_client.write_points(data)
+    influx_client.write_points(data, time_precision='ms')
 
 
 def consume_heartbeat(message):

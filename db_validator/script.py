@@ -9,8 +9,8 @@ influxdb_host = os.getenv("INFLUXDB_HOST", "influxdb")
 client = CoinbaseInfluxDBClient(host=influxdb_host)
 product_id = "BTC-EUR"
 
-query_limit = 'SELECT TOP("trade_id", 1000) AS "trade_id" from "{product_id}";'.format(product_id=product_id)
-query_limit_where = 'SELECT TOP("trade_id", 1000) AS "trade_id" from "{product_id}" ' \
+query_limit = 'SELECT TOP("trade_id", 100000) AS "trade_id" from "{product_id}";'.format(product_id=product_id)
+query_limit_where = 'SELECT TOP("trade_id", 100000) AS "trade_id" from "{product_id}" ' \
                     'where "trade_id" < {trade_id};'\
     .format(product_id=product_id, trade_id="{trade_id}")
 query_min = 'SELECT min("trade_id") FROM "{product_id}"'.format(product_id=product_id)
@@ -55,7 +55,8 @@ while True:
         min_id_in_db = client.get_min_trade_id(product_id)
 
         min_id = validate_results(rs)
-    time.sleep(1)
+        time.sleep(5)
+    time.sleep(20)
 
 
 

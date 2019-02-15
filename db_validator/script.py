@@ -1,4 +1,3 @@
-from influxdb import InfluxDBClient
 from Coinbase import CoinbaseRESTService, CoinbaseInfluxDBClient
 import time
 import os

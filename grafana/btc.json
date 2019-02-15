@@ -71,7 +71,7 @@
           "measurement": "BTC-EUR",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"price_unscaled\" * POW(10, \"price_scale\") as price FROM \"BTC-EUR\" WHERE $timeFilter",
+          "query": "SELECT \"price_unscaled\" * POW(10, \"price_scale\") as price FROM \"BTC-EUR\" WHERE time > now() - 1d",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",

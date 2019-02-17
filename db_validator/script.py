@@ -38,18 +38,17 @@ def validate_results(rs):
     else:
         missing_ids = missing(tids)
         print("missing: " + str(len(missing_ids)) + ": " + str(missing_ids))
-        from_rest(missing_ids[-1])
+        if len(missing_ids) > 0:
+            from_rest(missing_ids[-1])
     return tids[0]
 
 
 while True:
     rs = client.query(query_limit)
-    min_id_in_db = client.get_min_trade_id(product_id)
 
     min_id = validate_results(rs)
-    while min_id_in_db != min_id:
+    while client.get_min_trade_id(product_id) != min_id:
         rs = client.query(query_limit_where.format(trade_id=min_id))
-        min_id_in_db = client.get_min_trade_id(product_id)
 
         min_id = validate_results(rs)
         time.sleep(5)

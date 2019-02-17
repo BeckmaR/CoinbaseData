@@ -46,7 +46,7 @@ class CoinbaseInfluxDBClient:
                 "time": time
             }
         ]
-        # print(str(data))
+        print("Write: " + str(data))
         self.client.write_points(data, time_precision='ms')
 
     def _split_decimal(self, dec):

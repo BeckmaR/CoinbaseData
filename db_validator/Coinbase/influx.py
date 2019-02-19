@@ -71,6 +71,12 @@ class CoinbaseInfluxDBClient:
         for t in rs.get_points(measurement=product_id):
             return t['min']
 
+    def get_max_trade_id(self, product_id):
+        query = 'SELECT max("trade_id") FROM "{product_id}"'.format(product_id=product_id)
+        rs = self.query(query)
+        for t in rs.get_points(measurement=product_id):
+            return t['max']
+
     def get_trades_at_time(self, product_id, time):
         query = 'SELECT * FROM "BTC-EUR" WHERE time={0}'.format("'" + str(time) + "'")
         rs = self.client.query(query)

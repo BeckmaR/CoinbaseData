@@ -95,8 +95,8 @@ def min_id_in_trades(trades):
     return min([t["trade_id"] for t in trades])
 
 
-def binary_search(min_id, max_id):
-    print("Searching {0} to {1}...".format(min_id, max_id))
+def binary_search(min_id, max_id, depth):
+    print("Searching {0} to {1}... [{2}]".format(min_id, max_id, depth))
     query = \
         """SELECT min("trade_id"), max("trade_id"), count("trade_id")
         FROM "{product_id}" WHERE "trade_id" >= {min_id} AND "trade_id" <= {max_id}"""
@@ -113,14 +113,15 @@ def binary_search(min_id, max_id):
         return
     if max_id - min_id > 10000:
         mid_id = int((min_id + max_id) / 2)
-        binary_search(mid_id, max_id)
-        binary_search(min_id, mid_id)
+        binary_search(mid_id, max_id, depth+1)
+        binary_search(min_id, mid_id, depth+1)
     else:
         work(max_id)
 
 
 while True:
-    binary_search(0, int(10e15))
+    binary_search(0, int(10e15), 0)
+    time.sleep(30)
 
 
 

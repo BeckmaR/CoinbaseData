@@ -19,12 +19,16 @@ class CoinbaseInfluxDBClient:
         # Calculate a tag based on the trade_id.
         # Because influxDB doesn't like having too many unique tags,
         # trade_id should not be used as a tag.
-        # But because multiple trades can happen at the same time,
-        # trade_id % 100 is used as a tag. This means at most 1000
-        # different tags can occur, and 100 trades can happen at the same time
-        # without overwriting happening.
+        # Instead, tag % 100 can be used to retreive a trade sufficiently quickly,
+        # while not producing too many series.
 
         trade_id_tag = trade_id % 100
+
+        # Take the current number of trades at this timestamp for another tag.
+        # This should eliminate all duplicates.
+
+        trades = list(self.get_trades_at_time(product_id, time))
+        autoinc = len(trades)
 
         size_i, size_s = self._split_decimal(size)
         price_i, price_s = self._split_decimal(price)
@@ -34,7 +38,8 @@ class CoinbaseInfluxDBClient:
                 "measurement": product_id,
                 "tags": {
                     "uid": trade_id_tag,
-                    "side": side
+                    "side": side,
+                    "autoinc": autoinc
                 },
                 "fields": {
                     "size_unscaled": size_i,
@@ -64,3 +69,8 @@ class CoinbaseInfluxDBClient:
         rs = self.query(query)
         for t in rs.get_points(measurement=product_id):
             return t['min']
+
+    def get_trades_at_time(self, product_id, time):
+        query = 'SELECT * FROM "BTC-EUR" WHERE time={0}'.format("'" + str(time) + "'")
+        rs = self.client.query(query)
+        return rs.get_points(measurement=product_id)

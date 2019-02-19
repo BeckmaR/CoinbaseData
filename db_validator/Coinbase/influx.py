@@ -74,3 +74,10 @@ class CoinbaseInfluxDBClient:
         query = 'SELECT * FROM "BTC-EUR" WHERE time={0}'.format("'" + str(time) + "'")
         rs = self.client.query(query)
         return rs.get_points(measurement=product_id)
+
+    def has_ids_missing(self, product_id):
+        query = 'SELECT max("trade_id") - min("trade_id") - count("trade_id") FROM "BTC-EUR"'
+        rs = self.client.query(query)
+        for t in rs.get_points(measurement=product_id):
+            print("'max_min_count'=" + str(t["max_min_count"]))
+            return t["max_min_count"] != 1

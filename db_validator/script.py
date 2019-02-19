@@ -44,15 +44,18 @@ def validate_results(rs):
 
 
 while True:
-    rs = client.query(query_limit)
-
-    min_id = validate_results(rs)
-    while client.get_min_trade_id(product_id) != min_id:
-        rs = client.query(query_limit_where.format(trade_id=min_id))
+    if not client.has_ids_missing(product_id):
+        time.sleep(20)
+    else:
+        rs = client.query(query_limit)
 
         min_id = validate_results(rs)
-        time.sleep(5)
-    time.sleep(20)
+        while client.get_min_trade_id(product_id) != min_id:
+            rs = client.query(query_limit_where.format(trade_id=min_id))
+
+            min_id = validate_results(rs)
+            time.sleep(5)
+        time.sleep(20)
 
 
 

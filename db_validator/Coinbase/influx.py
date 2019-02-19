@@ -88,3 +88,7 @@ class CoinbaseInfluxDBClient:
         for t in rs.get_points(measurement=product_id):
             print("'max_min_count'=" + str(t["max_min_count"]))
             return t["max_min_count"] != 1
+
+    def get_points(self, query, measurement, **kwargs):
+        response = self.query(query.format(**kwargs))
+        return list(response.get_points(measurement=measurement))

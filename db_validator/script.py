@@ -95,14 +95,32 @@ def min_id_in_trades(trades):
     return min([t["trade_id"] for t in trades])
 
 
-while True:
-    if not client.has_ids_missing(product_id):
-        time.sleep(20)
+def binary_search(min_id, max_id):
+    print("Searching {0} to {1}...".format(min_id, max_id))
+    query = \
+        """SELECT min("trade_id"), max("trade_id"), count("trade_id")
+        FROM "{product_id}" WHERE "trade_id" >= {min_id} AND "trade_id" <= {max_id}"""
+    data = client.get_points(query, product_id, product_id=product_id, min_id=min_id, max_id=max_id)
+    if len(data) != 1:
+        print("Binary search returned unexpected results: " + str(data))
+        return
+    data = data[0]
+    count = data["count"]
+    min_id = data["min"]
+    max_id = data["max"]
+    if max_id - min_id == count - 1:
+        print("{0} to {1} complete!".format(min_id, max_id))
+        return
+    if max_id - min_id > 10000:
+        mid_id = int((min_id + max_id) / 2)
+        binary_search(mid_id, max_id)
+        binary_search(min_id, mid_id)
     else:
-        max_id = client.get_max_trade_id(product_id)
+        work(max_id)
 
-        while max_id != client.get_min_trade_id(product_id):
-            max_id = work(max_id)
+
+while True:
+    binary_search(0, int(10e15))
 
 
 

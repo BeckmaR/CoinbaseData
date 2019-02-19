@@ -33,8 +33,7 @@ class CoinbaseInfluxDBClient:
         size_i, size_s = self._split_decimal(size)
         price_i, price_s = self._split_decimal(price)
 
-        data = [
-            {
+        data = {
                 "measurement": product_id,
                 "tags": {
                     "uid": trade_id_tag,
@@ -50,9 +49,11 @@ class CoinbaseInfluxDBClient:
                 },
                 "time": time
             }
-        ]
-        print("Write: " + str(data))
-        self.client.write_points(data, time_precision='ms')
+
+        return data
+
+    def write(self, data):
+        self.client.write_points([data], time_precision='ms')
 
     def _split_decimal(self, dec):
         t = dec.as_tuple()

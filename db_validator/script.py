@@ -21,10 +21,18 @@ def missing(l):
     return result
 
 
-def from_rest(trade_id):
-    data = rest.get_id(product_id, trade_id)
-    for match in data:
-        client.from_match(match, product_id)
+def from_rest(trade_ids):
+    if len(trade_ids) == 0:
+        return
+    trade_id = max(trade_ids)
+    coinbase_data = rest.get_id(product_id, trade_id)
+    influx_points = [client.from_match(match, product_id) for match in coinbase_data]
+    for point in influx_points:
+        # Only write actual missing ids!
+        if point["fields"]["trade_id"] in trade_ids:
+            client.write(point)
+        else:
+            print("Discarding: " + str(point))
 
 
 def validate_results(rs):
@@ -39,7 +47,7 @@ def validate_results(rs):
         missing_ids = missing(tids)
         print("missing: " + str(len(missing_ids)) + ": " + str(missing_ids))
         if len(missing_ids) > 0:
-            from_rest(missing_ids[-1])
+            from_rest(missing_ids)
     return tids[0]
 
 

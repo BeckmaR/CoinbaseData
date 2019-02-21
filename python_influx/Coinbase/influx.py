@@ -1,5 +1,6 @@
 from influxdb import InfluxDBClient
 from decimal import Decimal as D
+import dateutil.parser as parser
 
 
 class CoinbaseInfluxDBClient:
@@ -7,7 +8,7 @@ class CoinbaseInfluxDBClient:
         self.client = InfluxDBClient(host=host, database="coinbase")
         self.client.ping()
 
-    def from_match(self, message, product_id=None):
+    def from_match(self, message, product_id=None, use_auto_inc=False):
         trade_id = int(message["trade_id"])
         side = message["side"]
         size = D(message["size"])
@@ -15,31 +16,31 @@ class CoinbaseInfluxDBClient:
         if product_id is None:
             product_id = message["product_id"]
         time = message["time"]
+        ms = self._rfc3339_to_ms(message["time"])
+        size_i, size_s = self._split_decimal(size)
+        price_i, price_s = self._split_decimal(price)
 
         # Calculate a tag based on the trade_id.
         # Because influxDB doesn't like having too many unique tags,
         # trade_id should not be used as a tag.
-        # Instead, tag % 100 can be used to retreive a trade sufficiently quickly,
+        # Instead, tag % 1000 can be used to retreive a trade sufficiently quickly,
         # while not producing too many series.
 
-        trade_id_tag = trade_id % 100
+        tags = {
+            "uid": trade_id % 1000,
+            "side": side
+        }
 
         # Take the current number of trades at this timestamp for another tag.
         # This should eliminate all duplicates.
 
-        trades = list(self.get_trades_at_time(product_id, time))
-        autoinc = len(trades)
+        if use_auto_inc:
+            trades = list(self.get_trades_at_time(product_id, time))
+            tags["autoinc"] = len(trades)
 
-        size_i, size_s = self._split_decimal(size)
-        price_i, price_s = self._split_decimal(price)
-
-        data = {
+        point = {
                 "measurement": product_id,
-                "tags": {
-                    "uid": trade_id_tag,
-                    "side": side,
-                    "autoinc": autoinc
-                },
+                "tags": tags,
                 "fields": {
                     "size_unscaled": size_i,
                     "size_scale": size_s,
@@ -47,13 +48,15 @@ class CoinbaseInfluxDBClient:
                     "price_scale": price_s,
                     "trade_id": trade_id
                 },
-                "time": time
-            }
+                "time": ms
+        }
 
-        return data
+        return point
 
     def write(self, data):
-        self.client.write_points([data], time_precision='ms')
+        if not isinstance(data, list):
+            data = [data]
+        self.client.write_points(data, time_precision='ms')
 
     def _split_decimal(self, dec):
         t = dec.as_tuple()
@@ -92,3 +95,10 @@ class CoinbaseInfluxDBClient:
     def get_points(self, query, measurement, **kwargs):
         response = self.query(query.format(**kwargs))
         return list(response.get_points(measurement=measurement))
+
+    def _rfc3339_to_ms(self, timestring):
+        dt = parser.parse(timestring)
+        ts = dt.timestamp()
+        s = int(ts)
+        ms = s * 1000 + dt.microsecond / 1000
+        return int(ms)

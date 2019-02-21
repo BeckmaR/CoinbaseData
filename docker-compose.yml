@@ -21,21 +21,24 @@ services:
       - coinbase
     ports:
       - "3000:3000"
-  websocket:
-    build: ./websocket_consumer
-    container_name: coinbase_websocket
-    networks:
-      - coinbase
-    environment:
-      - PYTHONUNBUFFERED=0
-    restart: unless-stopped
   db_validator:
-    build: ./db_validator
+    build: ./python_influx
+    image: python_influx
     container_name: db_validator
     networks:
       - coinbase
     environment:
       - PYTHONUNBUFFERED=0
     restart: unless-stopped
+    command: python3 -u validator.py
+  websocket:
+    image: python_influx
+    container_name: websocket
+    networks:
+      - coinbase
+    environment:
+      - PYTHONUNBUFFERED=0
+    restart: unless-stopped
+    command: python3 -u websocket.py
 networks:
   coinbase:

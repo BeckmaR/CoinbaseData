@@ -1,2 +1,0 @@
-docker container rm coinbase_websocket
-docker build --tag=websocket_consumer .

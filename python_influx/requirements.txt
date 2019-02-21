@@ -1,2 +1,3 @@
+PyMySQL
 influxdb
 websockets

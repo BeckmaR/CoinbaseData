@@ -44,14 +44,16 @@ def from_rest(trade_ids):
     trade_ids.sort(reverse=True)
     loaded_ids = []
     for trade_id in trade_ids:
-        coinbase_data = rest.get_id(product_id, trade_id)
-        influx_points = [client.from_match(match, product_id) for match in coinbase_data]
-        for point in influx_points:
-            # Only write actual missing ids!
-            point_id = point["fields"]["trade_id"]
-            if point_id in trade_ids and not point_id in loaded_ids:
-                client.write(point)
-                loaded_ids.append(point_id)
+        if not trade_id in loaded_ids:
+            coinbase_data = rest.get_id(product_id, trade_id)
+            influx_points = [client.from_match(match, product_id) for match in coinbase_data]
+            for point in influx_points:
+                # Only write actual missing ids!
+                point_id = point["fields"]["trade_id"]
+                if point_id in trade_ids and not point_id in loaded_ids:
+                    client.write(point)
+                    print("Write: " + str(point))
+                    loaded_ids.append(point_id)
     print("Written: " + str(loaded_ids))
 
 

@@ -40,14 +40,5 @@ services:
       - PYTHONUNBUFFERED=0
     restart: unless-stopped
     command: python3 -u websocket.py
-  mysql:
-    image: python_influx
-    container_name: mysql_import
-    networks:
-      - coinbase
-    environment:
-      - PYTHONUNBUFFERED=0
-    restart: unless-stopped
-    command: python3 -u mysql_import.py
 networks:
   coinbase:

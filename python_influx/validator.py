@@ -106,8 +106,9 @@ def binary_search(min_id, max_id, depth):
         return
     data = data[0]
     count = data["count"]
-    min_id = data["min"]
-    max_id = data["max"]
+    if depth == 0:
+        min_id = data["min"]
+        max_id = data["max"]
     if max_id - min_id == count - 1:
         print("{0} to {1} complete!".format(min_id, max_id))
         return

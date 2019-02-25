@@ -8,7 +8,7 @@ influxdb_host = os.getenv("INFLUXDB_HOST", "influxdb")
 client = CoinbaseInfluxDBClient(host=influxdb_host)
 product_id = "BTC-EUR"
 
-query_limit = 'SELECT * FROM "{product_id}" WHERE "trade_id" < {trade_id} ORDER BY time DESC LIMIT 10100'.format(product_id=product_id, trade_id="{trade_id}")
+query_limit = 'SELECT * FROM "{product_id}" WHERE "trade_id" <= {max_id} AND "trade_id" >={min_id}'
 
 rest = CoinbaseRESTService()
 
@@ -73,58 +73,60 @@ def get_missing(trade_ids):
         from_rest(missing_ids)
 
 
-def work(max_trade_id):
-    trades = query(max_trade_id)
+def work(max_id, min_id):
+    trades = client.get_points(query_limit, measurement="BTC-EUR", product_id="BTC-EUR", min_id=min_id, max_id=max_id)
     dupe_len = remove_duplicates(trades)
     if dupe_len > 0:
-        trades = query(max_trade_id)
+        trades = client.get_points(query_limit, measurement="BTC-EUR", product_id="BTC-EUR", min_id=min_id, max_id=max_id)
     trade_ids = [t["trade_id"] for t in trades]
     trade_ids.sort()
-    trade_ids = trade_ids[-10000:]
     get_missing(trade_ids)
     return min(trade_ids)
 
 
-def query(max_trade_id):
-    query = query_limit.format(trade_id=max_trade_id)
-    print(query)
-    rs = client.query(query_limit.format(trade_id=max_trade_id))
-    trades = [t for t in rs.get_points(product_id)]
-    return trades
+def get_max_validated():
+    query = """SELECT LAST("trade_id") FROM "BTC-EUR_validated" """
+    rs = client.query(query)
+    for t in rs.get_points():
+        return t["last"]
 
 
-def min_id_in_trades(trades):
-    return min([t["trade_id"] for t in trades])
+def get_minutes(max_id):
+    return client.get_points(
+        'SELECT * FROM "BTC-EUR_min_max_count_1m" WHERE max >= {max_id}',
+        measurement="BTC-EUR_min_max_count_1m",
+        max_id=max_id
+    )
 
 
-def binary_search(min_id, max_id, depth):
-    print("Searching {0} to {1}... [{2}]".format(min_id, max_id, depth))
-    query = \
-        """SELECT min("trade_id"), max("trade_id"), count("trade_id")
-        FROM "{product_id}" WHERE "trade_id" >= {min_id} AND "trade_id" <= {max_id}"""
-    data = client.get_points(query, product_id, product_id=product_id, min_id=min_id, max_id=max_id)
-    if len(data) != 1:
-        print("Binary search returned unexpected results: " + str(data))
-        return
-    data = data[0]
-    count = data["count"]
-    if depth == 0:
-        min_id = data["min"]
-        max_id = data["max"]
-    if max_id - min_id == count - 1:
-        print("{0} to {1} complete!".format(min_id, max_id))
-        return
-    if max_id - min_id > 10000:
-        mid_id = int((min_id + max_id) / 2)
-        binary_search(mid_id, max_id, depth+1)
-        binary_search(min_id, mid_id, depth+1)
-    else:
-        work(max_id)
+def check_minutes_connected(minutes):
+    if len(minutes) > 1:
+        last_max = minutes[0]["min"] - 1
+        for row in minutes:
+            if last_max + 1 != row["min"]:
+                work(last_max, row["max"])
+            last_max = row["max"]
 
 
 while True:
-    binary_search(0, int(10e15), 0)
-    time.sleep(30)
+    max_id = get_max_validated()
+    minutes = get_minutes(max_id)
+    if len(minutes) > 0:
+        for row in minutes:
+            if row["max"] - row["min"] + 1 != row["count"]:
+                work(max_id=row["max"], min_id=row["min"])
+            else:
+                print("{0} to {1} complete!".format(row["min"], row["max"]))
+        check_minutes_connected(minutes)
+        max_id = max([row["max"] for row in minutes])
+        data = {
+            "measurement": "BTC-EUR_validated",
+            "fields": {"trade_id": max_id}
+        }
+        client.write(data)
+    time.sleep(15)
+
+
 
 
 

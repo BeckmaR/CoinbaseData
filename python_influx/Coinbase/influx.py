@@ -66,6 +66,7 @@ class CoinbaseInfluxDBClient:
         return i, t[2]
 
     def query(self, query):
+        print(query)
         return self.client.query(query)
 
     def get_min_trade_id(self, product_id):

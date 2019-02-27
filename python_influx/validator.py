@@ -1,6 +1,7 @@
 from Coinbase import CoinbaseRESTService, CoinbaseInfluxDBClient
 import time
 import os
+from operator import itemgetter
 
 
 influxdb_host = os.getenv("INFLUXDB_HOST", "influxdb")
@@ -101,10 +102,11 @@ def get_minutes(max_id):
 
 def check_minutes_connected(minutes):
     if len(minutes) > 1:
+        minutes = sorted(minutes, key=itemgetter('min'))
         last_max = minutes[0]["min"] - 1
         for row in minutes:
             if last_max + 1 != row["min"]:
-                work(last_max, row["max"])
+                work(min_id=last_max, max_id=row["max"])
             last_max = row["max"]
 
 

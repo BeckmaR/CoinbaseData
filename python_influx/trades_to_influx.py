@@ -18,6 +18,7 @@ def callback(ch, method, props, body):
                         trade.price_scale, trade.price_unscaled,
                         trade.time)
     client.write(point)
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
 rabbit.channel.basic_consume(

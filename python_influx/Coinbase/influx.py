@@ -16,7 +16,6 @@ class CoinbaseInfluxDBClient:
         if product_id is None:
             product_id = message["product_id"]
         time = message["time"]
-        ms = self._rfc3339_to_ms(message["time"])
         size_i, size_s = self._split_decimal(size)
         price_i, price_s = self._split_decimal(price)
 
@@ -26,32 +25,29 @@ class CoinbaseInfluxDBClient:
         # Instead, tag % 1000 can be used to retreive a trade sufficiently quickly,
         # while not producing too many series.
 
+        return self.create_point(trade_id, side, size_s, size_i, price_s, price_i, time)
+
+    def create_point(self, trade_id, side, size_scale, size_unscaled, price_scale, price_unscaled, time):
         tags = {
-            "uid": trade_id % 1000,
+            "uid": self._uid(trade_id),
             "side": side
         }
-
-        # Take the current number of trades at this timestamp for another tag.
-        # This should eliminate all duplicates.
-
-        if use_auto_inc:
-            trades = list(self.get_trades_at_time(product_id, time))
-            tags["autoinc"] = len(trades)
-
         point = {
-                "measurement": product_id,
-                "tags": tags,
-                "fields": {
-                    "size_unscaled": size_i,
-                    "size_scale": size_s,
-                    "price_unscaled": price_i,
-                    "price_scale": price_s,
-                    "trade_id": trade_id
-                },
-                "time": ms
+            "measurement": "BTC-EUR",
+            "tags": tags,
+            "fields": {
+                "size_unscaled": size_unscaled,
+                "size_scale": size_scale,
+                "price_unscaled": price_unscaled,
+                "price_scale": price_scale,
+                "trade_id": trade_id
+            },
+            "time": self._rfc3339_to_ms(time)
         }
-
         return point
+
+    def _uid(self, trade_id):
+        return trade_id % 1000
 
     def write(self, data):
         if not isinstance(data, list):

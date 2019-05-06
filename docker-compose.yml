@@ -53,6 +53,29 @@ services:
     restart: unless-stopped
     command: python3 -u websocket.py
     depends_on:
+      - rabbit
+  websocket_to_trade:
+    image: python_influx
+    container_name: websocket_to_trade
+    networks:
+      - coinbase
+    environment:
+      - PYTHONUNBUFFERED=0
+    restart: unless-stopped
+    command: python3 -u websocket_to_trade.py
+    depends_on:
+      - rabbit
+  trades_to_influx:
+    image: python_influx
+    container_name: trades_to_influx
+    networks:
+      - coinbase
+    environment:
+      - PYTHONUNBUFFERED=0
+    restart: unless-stopped
+    command: python3 -u trades_to_influx.py
+    depends_on:
+      - rabbit
       - influxdb
 
 networks:

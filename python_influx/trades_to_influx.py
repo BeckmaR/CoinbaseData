@@ -3,6 +3,8 @@ import os
 from Coinbase import RabbitMQ, Trade, CoinbaseInfluxDBClient
 
 rabbit = RabbitMQ()
+rabbit.declare_coinbase_websocket()
+rabbit.declare_trades()
 result = rabbit.create_queue(exclusive=True)
 queue_name = result.method.queue
 rabbit.bind_to_trades(queue_name)
@@ -11,6 +13,7 @@ client = CoinbaseInfluxDBClient(host=os.getenv("INFLUXDB_HOST", "influxdb"))
 
 
 def callback(ch, method, props, body):
+    print(body)
     data = json.loads(body)
     trade = Trade.from_dict(data)
     point = client.create_point(trade.trade_id, trade.side,

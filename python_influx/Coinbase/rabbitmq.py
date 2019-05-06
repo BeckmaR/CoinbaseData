@@ -20,7 +20,7 @@ class RabbitMQ:
         self.channel.exchange_declare(TRADES, exchange_type="fanout")
 
     def create_queue(self,
-                      queue,
+                      queue="",
                       passive=False,
                       durable=False,
                       exclusive=False,

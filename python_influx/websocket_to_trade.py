@@ -2,12 +2,15 @@ import json
 from Coinbase import RabbitMQ, Trade
 
 rabbit = RabbitMQ()
+rabbit.declare_coinbase_websocket()
+rabbit.declare_trades()
 result = rabbit.create_queue(exclusive=True)
 queue_name = result.method.queue
 rabbit.bind_to_coinbase_websocket(queue_name, "match")
 
 
 def callback(ch, method, props, body):
+    print(body)
     data = json.loads(body)
     trade = Trade.from_attributes(data["trade_id"], data["side"], data["size"], data["price"], data["time"])
     msg = json.dumps(trade.to_dict())

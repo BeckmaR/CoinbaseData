@@ -22,7 +22,7 @@ services:
        source: ./mnt/influxdb
        target: /var/lib/influxdb
     environment:
-      - INFLUXDB_DB=coinbaseBTCEUR
+      - INFLUXDB_DB=coinbase
     restart: unless-stopped
   grafana:
     build: ./grafana

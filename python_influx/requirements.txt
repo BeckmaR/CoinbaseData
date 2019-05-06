@@ -1,3 +1,5 @@
 PyMySQL
 influxdb
 websockets
+numpy
+pika==1.0.0

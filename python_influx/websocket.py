@@ -3,7 +3,7 @@ import asyncio
 import websockets
 import json
 import pika
-from Coinbase import influx, CoinbaseInfluxDBClient
+from Coinbase import influx, CoinbaseInfluxDBClient, RabbitMQ
 
 coinbase_api_ws = "wss://ws-feed.pro.coinbase.com"
 
@@ -11,10 +11,8 @@ products = ["BTC-EUR"]
 
 #influx_client = CoinbaseInfluxDBClient(host=os.getenv("INFLUXDB_HOST", "influxdb"))
 
-conn = pika.BlockingConnection(pika.ConnectionParameters(host="jacomo"))
-channel = conn.channel()
-
-channel.exchange_declare(exchange="coinbase-websocket", exchange_type="direct")
+rabbitmq = RabbitMQ()
+rabbitmq.declare_coinbase_websocket()
 
 
 async def subscribe():
@@ -34,9 +32,7 @@ async def subscribe():
 
 def consume(message):
     message_json = json.loads(message)
-    channel.basic_publish(
-        exchange="coinbase-websocket", routing_key=message_json["type"], body=message
-    )
+    rabbitmq.publish_to_coinbase_websocket(message, message_json["type"])
     # message = json.loads(message)
     # if message["type"] == "match":
     #     consume_match(message)

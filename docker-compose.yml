@@ -92,6 +92,7 @@ services:
   timescale:
     image: timescale/timescaledb:latest-pg11
     container_name: timescaledb
+    restart: unless-stopped
     networks:
       - coinbase
     ports:

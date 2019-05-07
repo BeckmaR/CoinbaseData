@@ -77,6 +77,31 @@ services:
     depends_on:
       - rabbit
       - influxdb
+  trades_to_timescale:
+    image: python_influx
+    container_name: trades_to_timescale
+    networks:
+      - coinbase
+    environment:
+      - PYTHONUNBUFFERED=0
+    restart: unless-stopped
+    command: python3 -u trades_to_timescale.py
+    depends_on:
+      - rabbit
+      - timescale
+  timescale:
+    image: timescale/timescaledb:latest-pg11
+    container_name: timescaledb
+    networks:
+      - coinbase
+    ports:
+      - "5432:5432"
+    volumes:
+     - type: bind
+       source: ./mnt/timescaledb
+       target: /var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=bitcoin
 
 networks:
   coinbase:

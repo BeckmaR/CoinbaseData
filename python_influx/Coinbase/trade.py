@@ -1,5 +1,4 @@
-from decimal import Decimal as D
-import json
+import decimal
 
 TRADE_ID = "trade_id"
 SIDE = "side"
@@ -57,7 +56,7 @@ class Trade:
 
     @classmethod
     def split_float_str(cls, s):
-        dec = D(s)
+        dec = decimal.Decimal(s)
         t = dec.as_tuple()
         i = 0
         for d in t[1]:
@@ -68,13 +67,22 @@ class Trade:
     def price(self):
         return self.price_unscaled * 10 ** self.price_scale
 
+    def price_decimal(self):
+        return self._to_decimal(self.price_unscaled, self.price_scale)
+
     @property
     def size(self):
         return self.size_unscaled * 10 ** self.size_scale
 
+    def size_decimal(self):
+        return self._to_decimal(self.size_unscaled, self.size_scale)
+
     @property
     def volume(self):
         return self.price * self.size
+
+    def volume_decimal(self):
+        return self.size_decimal() * self.price_decimal()
 
     def to_dict(self):
         return {
@@ -86,5 +94,8 @@ class Trade:
             PRICE_UNSCALED: self.price_unscaled,
             TIME: self.time
         }
+
+    def _to_decimal(self, integer, scale):
+        return decimal.Decimal(integer) * decimal.Decimal(10) ** decimal.Decimal(scale)
 
 

@@ -1,10 +1,13 @@
 from influxdb import InfluxDBClient
 from decimal import Decimal as D
+import os
 import dateutil.parser as parser
 
 
 class CoinbaseInfluxDBClient:
-    def __init__(self, host):
+    def __init__(self, host=None):
+        if host is None:
+            host = os.getenv("INFLUXDB_HOST", "influxdb")
         self.client = InfluxDBClient(host=host, database="coinbase")
         self.client.ping()
 

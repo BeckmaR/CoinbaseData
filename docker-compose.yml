@@ -89,6 +89,17 @@ services:
     depends_on:
       - rabbit
       - timescale
+  influx_to_timescale:
+    image: python_influx
+    container_name: influx_to_timescale
+    networks:
+      - coinbase
+    environment:
+      - PYTHONUNBUFFERED=0
+    command: python3 -u influx_to_timescale.py
+    depends_on:
+      - timescale
+      - influxdb
   timescale:
     image: timescale/timescaledb:latest-pg11
     container_name: timescaledb

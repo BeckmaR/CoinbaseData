@@ -12,7 +12,7 @@ TIME = "time"
 class Trade:
     def __init__(self, trade_id, side, size_scale, size_unscaled, price_scale, price_unscaled, time):
         self.trade_id = trade_id
-        self.side = side
+        self.side = side.strip()
         self.size_scale = size_scale
         self.size_unscaled = size_unscaled
         self.price_scale = price_scale
@@ -30,8 +30,15 @@ class Trade:
                         size,
                         price,
                         time):
-        size_int, size_scale = cls.split_float_str(size)
-        price_int, price_scale = cls.split_float_str(price)
+        if isinstance(size, str):
+            size_int, size_scale = cls.split_float_str(size)
+        elif isinstance(size, decimal.Decimal):
+            size_int, size_scale = cls.split_decimal(size)
+        if isinstance(price, str):
+            price_int, price_scale = cls.split_float_str(price)
+        elif isinstance(price, decimal.Decimal):
+            price_int, price_scale = cls.split_decimal(price)
+
         return cls(
             trade_id,
             side,
@@ -57,7 +64,11 @@ class Trade:
     @classmethod
     def split_float_str(cls, s):
         dec = decimal.Decimal(s)
-        t = dec.as_tuple()
+        return cls.split_decimal(dec)
+
+    @classmethod
+    def split_decimal(cls, decimal):
+        t = decimal.as_tuple()
         i = 0
         for d in t[1]:
             i = i * 10 + d
@@ -97,5 +108,8 @@ class Trade:
 
     def _to_decimal(self, integer, scale):
         return decimal.Decimal(integer) * decimal.Decimal(10) ** decimal.Decimal(scale)
+
+    def __str__(self):
+        return str(self.to_dict())
 
 

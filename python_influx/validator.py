@@ -1,15 +1,9 @@
-from Coinbase import CoinbaseRESTService, CoinbaseInfluxDBClient
+from Coinbase import CoinbaseRESTService
+from TimescaleDB import TimescaleDB
 import time
-import os
-from operator import itemgetter
 
 
-influxdb_host = os.getenv("INFLUXDB_HOST", "influxdb")
-
-client = CoinbaseInfluxDBClient(host=influxdb_host)
-product_id = "BTC-EUR"
-
-query_limit = 'SELECT * FROM "{product_id}" WHERE "trade_id" <= {max_id} AND "trade_id" >={min_id}'
+tsdb = TimescaleDB()
 
 rest = CoinbaseRESTService()
 
@@ -21,24 +15,15 @@ def missing(l):
     return result
 
 
-def duplicates(l):
+def duplicates(trade_ids):
     seen = {}
     duplicates = []
-    for n in l:
-        trade_id = n["trade_id"]
+    for trade_id in trade_ids:
         if trade_id not in seen:
             seen[trade_id] = 1
         else:
-            duplicates.append(n)
+            duplicates.append(trade_id)
     return duplicates
-
-
-def delete(d):
-    time = "'" + str(d["time"]) + "'"
-    uid = "'" + str(d["trade_id"] % 100) + "'"
-    query = 'DELETE FROM "BTC-EUR" WHERE time = {0} AND "uid" = {1}'.format(time, uid)
-    print(query)
-    client.query(query)
 
 
 def from_rest(trade_ids):
@@ -46,15 +31,14 @@ def from_rest(trade_ids):
     loaded_ids = []
     for trade_id in trade_ids:
         if not trade_id in loaded_ids:
-            coinbase_data = rest.get_id(product_id, trade_id)
-            influx_points = [client.from_match(match, product_id) for match in coinbase_data]
-            for point in influx_points:
+            trades = rest.get_id("BTC-EUR", trade_id)
+            for trade in trades:
                 # Only write actual missing ids!
-                point_id = point["fields"]["trade_id"]
-                if point_id in trade_ids and not point_id in loaded_ids:
-                    client.write(point)
-                    print("Write: " + str(point))
-                    loaded_ids.append(point_id)
+                trade_id = trade.trade_id
+                if trade_id in trade_ids and not trade_id in loaded_ids:
+                    tsdb.insert(trade)
+                    print("Write: " + str(trade))
+                    loaded_ids.append(trade_id)
     print("Written: " + str(loaded_ids))
 
 
@@ -63,7 +47,7 @@ def remove_duplicates(trades):
     if len(dupes) > 0:
         print("Duplicate: " + str(dupes))
         for d in dupes:
-            delete(d)
+            tsdb.delete(d)
     return len(dupes)
 
 
@@ -74,58 +58,33 @@ def get_missing(trade_ids):
         from_rest(missing_ids)
 
 
-def work(max_id, min_id):
-    trades = client.get_points(query_limit, measurement="BTC-EUR", product_id="BTC-EUR", min_id=min_id, max_id=max_id)
-    dupe_len = remove_duplicates(trades)
+def work(min_id, max_id):
+    trades = tsdb.get_range(min_id, max_id)
+    trade_ids = list(map(lambda i : i.trade_id, trades))
+    dupe_len = remove_duplicates(trade_ids)
     if dupe_len > 0:
-        trades = client.get_points(query_limit, measurement="BTC-EUR", product_id="BTC-EUR", min_id=min_id, max_id=max_id)
-    trade_ids = [t["trade_id"] for t in trades]
-    trade_ids.sort()
-    get_missing(trade_ids)
-    return min(trade_ids)
+        trades = tsdb.get_range(min_id, max_id)
+        trade_ids = list(map(lambda t: t.trade_id, trades))
+    get_missing(list(trade_ids))
 
 
-def get_max_validated():
-    query = """SELECT LAST("trade_id") FROM "BTC-EUR_validated" """
-    rs = client.query(query)
-    for t in rs.get_points():
-        return t["last"]
-
-
-def get_minutes(max_id):
-    return client.get_points(
-        'SELECT * FROM "BTC-EUR_min_max_count_1m" WHERE max >= {max_id}',
-        measurement="BTC-EUR_min_max_count_1m",
-        max_id=max_id
-    )
-
-
-def check_minutes_connected(minutes):
-    if len(minutes) > 1:
-        minutes = sorted(minutes, key=itemgetter('min'))
-        last_max = minutes[0]["min"] - 1
-        for row in minutes:
-            if last_max + 1 != row["min"]:
-                work(min_id=last_max, max_id=row["max"])
-            last_max = row["max"]
+def check_interval(min, max):
+    print("Checking: %d to %d" % (min, max))
+    SQL = "SELECT count(trade_id), max(trade_id) - min(trade_id) + 1 from BTCEUR WHERE trade_id >= %s AND trade_id <= %s"
+    result = tsdb.execute(SQL, (min, max))[0]
+    if result[1] != result[0] or max - min + 1 != result[0]:
+        if result[0] > 10000:
+            check_interval(min, int((max - min)/2 + min))
+        else:
+            work(min, max)
+            check_interval(min, max)
+    else:
+        tsdb.set_max_validated(max)
+        print("Complete: %d to %d" % (min, max))
 
 
 while True:
-    max_id = get_max_validated()
-    minutes = get_minutes(max_id)
-    if len(minutes) > 0:
-        for row in minutes:
-            if row["max"] - row["min"] + 1 != row["count"]:
-                work(max_id=row["max"], min_id=row["min"])
-            else:
-                print("{0} to {1} complete!".format(row["min"], row["max"]))
-        check_minutes_connected(minutes)
-        max_id = max([row["max"] for row in minutes])
-        data = {
-            "measurement": "BTC-EUR_validated",
-            "fields": {"trade_id": max_id}
-        }
-        client.write(data)
+    check_interval(tsdb.get_max_validated(), tsdb.max_id())
     time.sleep(15)
 
 

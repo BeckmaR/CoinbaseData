@@ -27,6 +27,7 @@ def callback(ch, method, props, body):
     trade = Trade.from_dict(data)
     cursor.execute(SQL, (trade.time, trade.trade_id, trade.side, trade.size_decimal(), trade.price_decimal()))
     connection.commit()
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
 rabbit.channel.basic_consume(
     queue=queue_name, on_message_callback=callback

@@ -8,9 +8,9 @@ tsdb = TimescaleDB()
 rest = CoinbaseRESTService()
 
 
-def missing(l):
+def missing(l, min, max):
     l.sort()
-    result = list(set(l).symmetric_difference(range(l[0], l[-1] + 1)))
+    result = list(set(l).symmetric_difference(range(min, max + 1)))
     result.sort()
     return result
 
@@ -51,8 +51,8 @@ def remove_duplicates(trades):
     return len(dupes)
 
 
-def get_missing(trade_ids):
-    missing_ids = missing(trade_ids)
+def get_missing(trade_ids, min, max):
+    missing_ids = missing(trade_ids, min, max)
     if len(missing_ids) > 0:
         print("Missing: " + str(missing_ids))
         from_rest(missing_ids)
@@ -65,7 +65,7 @@ def work(min_id, max_id):
     if dupe_len > 0:
         trades = tsdb.get_range(min_id, max_id)
         trade_ids = list(map(lambda t: t.trade_id, trades))
-    get_missing(list(trade_ids))
+    get_missing(list(trade_ids), min_id, max_id)
 
 
 def check_interval(min, max):
@@ -73,7 +73,7 @@ def check_interval(min, max):
     SQL = "SELECT count(trade_id), max(trade_id) - min(trade_id) + 1 from BTCEUR WHERE trade_id >= %s AND trade_id <= %s"
     result = tsdb.execute(SQL, (min, max))[0]
     if result[1] != result[0] or max - min + 1 != result[0]:
-        if result[0] > 10000:
+        if result[0] > 10000 or max - min > 10000:
             check_interval(min, int((max - min)/2 + min))
         else:
             work(min, max)
